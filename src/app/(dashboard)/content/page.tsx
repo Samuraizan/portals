@@ -42,7 +42,7 @@ type SortBy = 'date_desc' | 'date_asc' | 'name_asc' | 'size_desc';
 
 export default function ContentPage() {
   const router = useRouter();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, role } = usePermissions();
   const [content, setContent] = useState<UploadedContent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +57,8 @@ export default function ContentPage() {
     } else {
       setIsLoading(false);
     }
-  }, [hasPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const fetchContent = async () => {
     setIsLoading(true);
@@ -101,8 +102,8 @@ export default function ContentPage() {
     .filter((item) => {
       const matchesType =
         typeFilter === 'all' ||
-        (typeFilter === 'image' && item.mimeType.startsWith('image/')) ||
-        (typeFilter === 'video' && item.mimeType.startsWith('video/'));
+        (typeFilter === 'image' && item.mimeType?.startsWith('image/')) ||
+        (typeFilter === 'video' && item.mimeType?.startsWith('video/'));
       const matchesSearch =
         !searchQuery ||
         item.originalFilename.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -127,8 +128,8 @@ export default function ContentPage() {
   // Count by type
   const typeCounts = {
     all: content.length,
-    image: content.filter((c) => c.mimeType.startsWith('image/')).length,
-    video: content.filter((c) => c.mimeType.startsWith('video/')).length,
+    image: content.filter((c) => c.mimeType?.startsWith('image/')).length,
+    video: content.filter((c) => c.mimeType?.startsWith('video/')).length,
   };
 
   if (!hasPermission('canViewPlayers')) {

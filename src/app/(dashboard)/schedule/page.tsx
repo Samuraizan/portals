@@ -20,7 +20,7 @@ import {
 import { Calendar, Plus, RefreshCw, AlertCircle, Clock } from 'lucide-react';
 
 export default function SchedulePage() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, role } = usePermissions();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,8 @@ export default function SchedulePage() {
     } else {
       setIsLoading(false);
     }
-  }, [hasPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const fetchSchedules = async () => {
     setIsLoading(true);

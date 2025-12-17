@@ -38,7 +38,7 @@ interface User {
 }
 
 export default function AdminUsersPage() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, role } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,8 @@ export default function AdminUsersPage() {
     } else {
       setIsLoading(false);
     }
-  }, [hasPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const fetchUsers = async () => {
     setIsLoading(true);

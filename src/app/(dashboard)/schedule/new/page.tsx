@@ -30,7 +30,7 @@ import {
 export default function NewSchedulePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { hasPermission, canAccessPlayer } = usePermissions();
+  const { hasPermission, canAccessPlayer, role } = usePermissions();
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [content, setContent] = useState<UploadedContent[]>([]);
@@ -60,7 +60,8 @@ export default function NewSchedulePage() {
     } else {
       setIsLoading(false);
     }
-  }, [hasPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -365,7 +366,7 @@ export default function NewSchedulePage() {
                             alt=""
                             className="h-full w-full rounded object-cover"
                           />
-                        ) : item.mimeType.startsWith('video/') ? (
+                        ) : item.mimeType?.startsWith('video/') ? (
                           <FileVideo className="h-8 w-8 text-muted-foreground" />
                         ) : (
                           <FileImage className="h-8 w-8 text-muted-foreground" />

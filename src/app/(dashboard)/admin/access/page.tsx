@@ -69,7 +69,7 @@ const ACCESS_LEVEL_CONFIG = {
 
 export default function AccessManagementPage() {
   const { user } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, role } = usePermissions();
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -111,7 +111,8 @@ export default function AccessManagementPage() {
     };
 
     fetchData();
-  }, [hasPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const handleGrantAccess = async () => {
     if (!selectedPlayer || !phoneNumber) return;

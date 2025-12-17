@@ -38,8 +38,8 @@ interface ContentCardProps {
 
 export function ContentCard({ content, onDelete, onSchedule }: ContentCardProps) {
   const [showPreview, setShowPreview] = useState(false);
-  const isVideo = content.mimeType.startsWith('video/');
-  const isImage = content.mimeType.startsWith('image/');
+  const isVideo = content.mimeType?.startsWith('video/') ?? false;
+  const isImage = content.mimeType?.startsWith('image/') ?? false;
 
   return (
     <>
