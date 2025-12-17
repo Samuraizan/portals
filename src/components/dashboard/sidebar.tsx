@@ -14,6 +14,7 @@ import {
   Settings,
   Users,
   LogOut,
+  Shield,
 } from 'lucide-react';
 
 const navigation = [
@@ -50,6 +51,12 @@ const navigation = [
 ];
 
 const adminNavigation = [
+  {
+    name: 'Access Control',
+    href: '/admin/access',
+    icon: Shield,
+    permission: 'canManageUsers' as const,
+  },
   {
     name: 'Users',
     href: '/admin/users',

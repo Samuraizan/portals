@@ -14,6 +14,8 @@ export type Permission =
   | 'canViewAuditLogs'
   | 'canEditPermissions';
 
+export type AccessLevel = 'view' | 'manage' | 'admin';
+
 export interface RoleConfig {
   displayName: string;
   description: string;
@@ -54,6 +56,24 @@ export const ROLES: Record<string, RoleConfig> = {
       canDeployToPlayers: true,
       canControlPlayback: true,
       canViewAnalytics: true,
+      canManageUsers: false,
+      canViewAuditLogs: false,
+      canEditPermissions: false,
+    },
+  },
+  'marketing': {
+    displayName: 'Marketing Team',
+    description: 'Upload content and control assigned players',
+    allowedPlayers: [], // Will be extended by database permissions
+    allowedLocations: ['SFO', 'BLR'],
+    permissions: {
+      canViewPlayers: true,
+      canUploadContent: true,
+      canScheduleContent: true,
+      canDeleteContent: false,
+      canDeployToPlayers: true,
+      canControlPlayback: true,
+      canViewAnalytics: false,
       canManageUsers: false,
       canViewAuditLogs: false,
       canEditPermissions: false,
@@ -163,6 +183,13 @@ export const ROLES: Record<string, RoleConfig> = {
   },
 };
 
+// Access level permissions mapping
+export const ACCESS_LEVEL_PERMISSIONS: Record<AccessLevel, Permission[]> = {
+  view: ['canViewPlayers'],
+  manage: ['canViewPlayers', 'canUploadContent', 'canScheduleContent', 'canControlPlayback', 'canDeployToPlayers'],
+  admin: ['canViewPlayers', 'canUploadContent', 'canScheduleContent', 'canControlPlayback', 'canDeployToPlayers', 'canDeleteContent'],
+};
+
 // Player location mapping
 export const PLAYER_LOCATIONS: Record<string, string> = {
   'Schelling Point Left': 'SFO',
@@ -176,4 +203,3 @@ export const PLAYER_LOCATIONS: Record<string, string> = {
   'Hallway entrance Blrxzo': 'BLR',
   'BLRxZo Entrance': 'BLR',
 };
-

@@ -1,8 +1,8 @@
 import { ZoUser, Player } from '@/types';
-import { ROLES, Permission, RoleConfig } from '@/config/roles';
+import { ROLES, Permission, RoleConfig, AccessLevel, ACCESS_LEVEL_PERMISSIONS } from '@/config/roles';
 
-// Re-export the Permission type
-export type { Permission } from '@/config/roles';
+// Re-export types
+export type { Permission, AccessLevel } from '@/config/roles';
 
 export interface UserPermissions {
   role: string;
@@ -10,6 +10,17 @@ export interface UserPermissions {
   allowedPlayers: string[] | '*';
   allowedLocations: string[];
   permissions: Record<Permission, boolean>;
+  customPlayerPermissions?: PlayerPermission[];
+}
+
+export interface PlayerPermission {
+  playerId: string;
+  playerName: string;
+  accessLevel: AccessLevel;
+  grantedBy: string;
+  grantedAt: string;
+  expiresAt?: string;
+  notes?: string;
 }
 
 /**
@@ -33,7 +44,7 @@ export function extractUserRole(user: ZoUser): string {
 
   // Priority 2: Check access_groups
   if (user.access_groups && user.access_groups.length > 0) {
-    const knownGroups = ['property-manager', 'activity-manager', 'front-desk-manager'];
+    const knownGroups = ['property-manager', 'activity-manager', 'front-desk-manager', 'marketing'];
     for (const group of knownGroups) {
       if (user.access_groups.includes(group)) return group;
     }
@@ -48,7 +59,7 @@ export function extractUserRole(user: ZoUser): string {
 }
 
 /**
- * Get user's permissions based on their role
+ * Get user's permissions based on their role (sync version - client safe)
  */
 export function getUserPermissions(user: ZoUser): UserPermissions {
   const role = extractUserRole(user);
@@ -72,7 +83,7 @@ export function hasPermission(user: ZoUser, permission: Permission): boolean {
 }
 
 /**
- * Check if user can access a specific player
+ * Check if user can access a specific player (sync version - uses role config only)
  */
 export function canAccessPlayer(
   user: ZoUser,
@@ -92,7 +103,7 @@ export function canAccessPlayer(
 }
 
 /**
- * Filter players list based on user's access
+ * Filter players list based on user's access (sync version - client safe)
  */
 export function filterAllowedPlayers(user: ZoUser, players: Player[]): Player[] {
   const permissions = getUserPermissions(user);
@@ -128,3 +139,12 @@ export function isValidRole(role: string): boolean {
   return role in ROLES;
 }
 
+/**
+ * Check if user has specific permission for a player based on access level
+ */
+export function accessLevelHasPermission(
+  accessLevel: AccessLevel,
+  permission: Permission
+): boolean {
+  return ACCESS_LEVEL_PERMISSIONS[accessLevel]?.includes(permission) || false;
+}
