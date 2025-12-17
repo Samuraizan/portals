@@ -10,26 +10,14 @@ export async function GET(request: NextRequest) {
 
     if (!session) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Not authenticated',
-          },
-        },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
         { status: 401 }
       );
     }
 
     if (!hasPermission(session.user, 'canViewPlayers')) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'You do not have permission to view content',
-          },
-        },
+        { success: false, error: { code: 'FORBIDDEN', message: 'You do not have permission to view content' } },
         { status: 403 }
       );
     }
@@ -40,86 +28,61 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const perPage = parseInt(searchParams.get('per_page') || '50');
 
-    // Build where clause
-    const where: Record<string, unknown> = {};
+    // Try database first
+    let query = supabase
+      .from('uploaded_content')
+      .select('*', { count: 'exact' });
 
     if (type === 'image') {
-      where.mimeType = { startsWith: 'image/' };
+      query = query.ilike('mime_type', 'image/%');
     } else if (type === 'video') {
-      where.mimeType = { startsWith: 'video/' };
+      query = query.ilike('mime_type', 'video/%');
     }
 
     if (search) {
-      where.OR = [
-        { originalFilename: { contains: search, mode: 'insensitive' } },
-        { metadata: { path: ['title'], string_contains: search } },
-      ];
+      query = query.ilike('original_filename', `%${search}%`);
     }
 
-    // Try to get from database first
-    try {
-      const [content, total] = await Promise.all([
-        prisma.uploadedContent.findMany({
-          where,
-          skip: (page - 1) * perPage,
-          take: perPage,
-          orderBy: { createdAt: 'desc' },
-        }),
-        prisma.uploadedContent.count({ where }),
-      ]);
+    const { data: content, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range((page - 1) * perPage, page * perPage - 1);
 
+    if (!error && content) {
       return NextResponse.json({
         success: true,
         data: content,
         pagination: {
           page,
           perPage,
-          total,
-          pages: Math.ceil(total / perPage),
+          total: count || 0,
+          pages: Math.ceil((count || 0) / perPage),
         },
       });
-    } catch {
-      // If database not available, try PiSignage directly
-      const assets = await piSignageClient.getAssets();
-
-      const content = assets.data?.dbdata?.map((asset, index) => ({
-        id: `pisignage-${index}`,
-        filename: asset.name,
-        originalFilename: asset.name,
-        fileSize: parseInt(asset.size?.replace(/[^0-9]/g, '') || '0') * 1024 * 1024,
-        mimeType: asset.type === 'video' ? 'video/mp4' : 'image/jpeg',
-        duration: asset.duration ? parseInt(asset.duration) : undefined,
-        resolution: asset.resolution
-          ? {
-              width: parseInt(asset.resolution.width),
-              height: parseInt(asset.resolution.height),
-            }
-          : undefined,
-        storageUrl: `${process.env.PISIGNAGE_API_URL?.replace('/api', '')}/media/${asset.name}`,
-        thumbnailUrl: asset.thumbnail
-          ? `${process.env.PISIGNAGE_API_URL?.replace('/api', '')}${asset.thumbnail}`
-          : undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })) || [];
-
-      return NextResponse.json({
-        success: true,
-        data: content,
-      });
     }
+
+    // Fallback: fetch from PiSignage directly
+    const filesResult = await piSignageClient.getFiles();
+    const files = (filesResult.data as Array<{ name: string; size?: string; type?: string }>) || [];
+
+    const formattedContent = files.map((file, index) => ({
+      id: `pisignage-${index}`,
+      filename: file.name,
+      original_filename: file.name,
+      file_size: parseInt(file.size?.replace(/[^0-9]/g, '') || '0') * 1024,
+      mime_type: file.type === 'video' ? 'video/mp4' : 'image/jpeg',
+      storage_url: `${process.env.PISIGNAGE_API_URL?.replace('/api', '')}/media/${file.name}`,
+      created_at: new Date().toISOString(),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: formattedContent,
+    });
   } catch (error) {
     console.error('Content API error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to fetch content',
-        },
-      },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch content' } },
       { status: 500 }
     );
   }
 }
-

@@ -21,26 +21,18 @@ export async function GET() {
       );
     }
 
-    // const users = // await prisma.user.findMany({
-      orderBy: { lastLogin: 'desc' },
-      select: {
-        id: true,
-        zoUserId: true,
-        phoneNumber: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        membership: true,
-        roles: true,
-        accessGroups: true,
-        lastLogin: true,
-        createdAt: true,
-      },
-    });
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('last_login', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({
       success: true,
-      data: users,
+      data: users || [],
     });
   } catch (error) {
     console.error('Admin users API error:', error);
@@ -50,4 +42,3 @@ export async function GET() {
     );
   }
 }
-

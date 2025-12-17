@@ -26,11 +26,13 @@ export async function GET(
       );
     }
 
-    // const content = // await prisma.uploadedContent.findUnique({
-      where: { id },
-    });
+    const { data: content, error } = await supabase
+      .from('uploaded_content')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    if (!content) {
+    if (error || !content) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Content not found' } },
         { status: 404 }
@@ -70,11 +72,13 @@ export async function DELETE(
     }
 
     // Get content from database
-    // const content = // await prisma.uploadedContent.findUnique({
-      where: { id },
-    });
+    const { data: content, error: fetchError } = await supabase
+      .from('uploaded_content')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    if (!content) {
+    if (fetchError || !content) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Content not found' } },
         { status: 404 }
@@ -82,42 +86,16 @@ export async function DELETE(
     }
 
     // Delete from PiSignage
-    if (content.pisignageFilename) {
+    if (content.pisignage_filename) {
       try {
-        await piSignageClient.deleteAsset(content.pisignageFilename);
-      } catch (piError) {
-        console.warn('Failed to delete from PiSignage:', piError);
+        await piSignageClient.deleteFile(content.pisignage_filename);
+      } catch {
+        // Continue even if PiSignage delete fails
       }
     }
 
     // Delete from database
-    // await prisma.uploadedContent.delete({
-      where: { id },
-    });
-
-    // Create audit log
-    try {
-      // const dbUser = // await prisma.user.findUnique({
-        where: { zoUserId: session.user.id },
-      });
-
-      if (dbUser) {
-        // await prisma.auditLog.create({
-          data: {
-            userId: dbUser.id,
-            phoneNumber: session.user.mobile_number,
-            action: 'delete',
-            resourceType: 'content',
-            resourceId: id,
-            metadata: { filename: content.originalFilename },
-            ipAddress: request.headers.get('x-forwarded-for'),
-            userAgent: request.headers.get('user-agent'),
-          },
-        });
-      }
-    } catch (dbError) {
-      console.warn('Failed to create audit log:', dbError);
-    }
+    await supabase.from('uploaded_content').delete().eq('id', id);
 
     return NextResponse.json({ success: true, message: 'Content deleted successfully' });
   } catch (error) {
@@ -128,4 +106,3 @@ export async function DELETE(
     );
   }
 }
-

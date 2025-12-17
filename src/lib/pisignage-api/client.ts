@@ -1,6 +1,35 @@
 import axios from 'axios';
 import { env } from '@/config/env';
 
+interface Player {
+  _id: string;
+  name: string;
+  isConnected?: boolean;
+  group?: { _id: string; name: string };
+  [key: string]: unknown;
+}
+
+interface PlayersResponse {
+  success: boolean;
+  data: {
+    objects: Player[];
+  };
+  error?: { message: string };
+}
+
+interface PlayerResponse {
+  success: boolean;
+  data?: Player;
+  error?: string;
+}
+
+interface ApiResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: unknown;
+}
+
 // Simple PiSignage client without interceptors (prevents memory leaks)
 class PiSignageClient {
   private baseURL: string;
@@ -23,93 +52,245 @@ class PiSignageClient {
     return this.token!;
   }
 
-  async getPlayers() {
-    const token = await this.authenticate();
-    
-    const response = await axios.get(`${this.baseURL}/players`, {
-      headers: { 'x-access-token': token },
-      params: { per_page: 100 },
-    });
+  async getPlayers(): Promise<PlayersResponse> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.get(`${this.baseURL}/players`, {
+        headers: { 'x-access-token': token },
+        params: { per_page: 100 },
+      });
 
-    return response.data;
+      return {
+        success: true,
+        data: response.data.data || response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: { objects: [] },
+        error: { message: error instanceof Error ? error.message : 'Failed to fetch players' },
+      };
+    }
   }
 
-  async getPlayer(playerId: string) {
-    const token = await this.authenticate();
-    
-    const response = await axios.get(`${this.baseURL}/players/${playerId}`, {
-      headers: { 'x-access-token': token },
-    });
+  async getPlayerById(playerId: string): Promise<PlayerResponse> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.get(`${this.baseURL}/players/${playerId}`, {
+        headers: { 'x-access-token': token },
+      });
 
-    return response.data;
+      return {
+        success: true,
+        data: response.data.data || response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch player',
+      };
+    }
   }
 
-  async controlPlayer(playerId: string, action: string) {
-    const token = await this.authenticate();
-    
-    const response = await axios.post(
-      `${this.baseURL}/playlistmedia/${playerId}/${action}`,
-      {},
-      { headers: { 'x-access-token': token } }
-    );
+  async controlPlayer(playerId: string, action: 'play' | 'pause' | 'reboot'): Promise<ApiResult> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.post(
+        `${this.baseURL}/playlistmedia/${playerId}/${action}`,
+        {},
+        { headers: { 'x-access-token': token } }
+      );
 
-    return response.data;
+      return {
+        success: true,
+        message: response.data.message || `Action ${action} executed`,
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to control player',
+      };
+    }
   }
 
-  async getPlaylists() {
-    const token = await this.authenticate();
-    
-    const response = await axios.get(`${this.baseURL}/playlists`, {
-      headers: { 'x-access-token': token },
-    });
+  async setPlayerPlaylist(playerId: string, playlistName: string): Promise<ApiResult> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.post(
+        `${this.baseURL}/setplaylist/${playerId}/${playlistName}`,
+        {},
+        { headers: { 'x-access-token': token } }
+      );
 
-    return response.data;
+      return {
+        success: true,
+        message: response.data.message || `Playlist set to ${playlistName}`,
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to set playlist',
+      };
+    }
   }
 
-  async getFiles() {
-    const token = await this.authenticate();
-    
-    const response = await axios.get(`${this.baseURL}/files`, {
-      headers: { 'x-access-token': token },
-    });
+  async getPlaylists(): Promise<{ success: boolean; data?: unknown[]; error?: string }> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.get(`${this.baseURL}/playlists`, {
+        headers: { 'x-access-token': token },
+      });
 
-    return response.data;
+      return {
+        success: true,
+        data: response.data.data?.objects || response.data.objects || [],
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch playlists',
+      };
+    }
   }
 
-  async uploadFile(formData: FormData) {
-    const token = await this.authenticate();
-    
-    const response = await axios.post(`${this.baseURL}/files`, formData, {
-      headers: {
-        'x-access-token': token,
-        'Content-Type': 'multipart/form-data',
-      },
-      timeout: 300000,
-    });
+  async getFiles(): Promise<{ success: boolean; data?: unknown[]; error?: string }> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.get(`${this.baseURL}/files`, {
+        headers: { 'x-access-token': token },
+      });
 
-    return response.data;
+      return {
+        success: true,
+        data: response.data.data?.objects || response.data.objects || [],
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch files',
+      };
+    }
   }
 
-  async deleteFile(filename: string) {
-    const token = await this.authenticate();
-    
-    const response = await axios.delete(`${this.baseURL}/files/${filename}`, {
-      headers: { 'x-access-token': token },
-    });
+  async uploadFile(formData: FormData): Promise<{ success: boolean; data?: { name: string; type: string; size: number }; error?: string }> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.post(`${this.baseURL}/files`, formData, {
+        headers: {
+          'x-access-token': token,
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 300000,
+      });
 
-    return response.data;
+      return {
+        success: true,
+        data: response.data.data || response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to upload file',
+      };
+    }
   }
 
-  async setPlaylist(playerId: string, playlistName: string) {
-    const token = await this.authenticate();
-    
-    const response = await axios.post(
-      `${this.baseURL}/setplaylist/${playerId}/${playlistName}`,
-      {},
-      { headers: { 'x-access-token': token } }
-    );
+  async deleteFile(filename: string): Promise<ApiResult> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.delete(`${this.baseURL}/files/${filename}`, {
+        headers: { 'x-access-token': token },
+      });
 
-    return response.data;
+      return {
+        success: true,
+        message: response.data.message || 'File deleted',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete file',
+      };
+    }
+  }
+
+  async createPlaylist(name: string): Promise<ApiResult> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.post(
+        `${this.baseURL}/playlists`,
+        { name },
+        { headers: { 'x-access-token': token } }
+      );
+
+      return {
+        success: true,
+        message: response.data.message || 'Playlist created',
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create playlist',
+      };
+    }
+  }
+
+  async updatePlaylist(name: string, data: { assets: Array<{ filename: string; duration: number; selected: boolean }> }): Promise<ApiResult> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.post(
+        `${this.baseURL}/playlists/${name}`,
+        data,
+        { headers: { 'x-access-token': token } }
+      );
+
+      return {
+        success: true,
+        message: response.data.message || 'Playlist updated',
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update playlist',
+      };
+    }
+  }
+
+  async deployToGroup(groupId: string, deployData: unknown): Promise<ApiResult> {
+    try {
+      const token = await this.authenticate();
+      
+      const response = await axios.post(
+        `${this.baseURL}/groups/${groupId}`,
+        deployData,
+        { headers: { 'x-access-token': token } }
+      );
+
+      return {
+        success: true,
+        message: response.data.message || 'Deployed to group',
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to deploy to group',
+      };
+    }
   }
 }
 

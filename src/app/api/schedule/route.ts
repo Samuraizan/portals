@@ -8,7 +8,6 @@ import { z } from 'zod';
 const createScheduleSchema = z.object({
   playlistName: z.string().min(1),
   playerIds: z.array(z.string()).min(1),
-  contentIds: z.array(z.string()).optional(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   assets: z.array(
@@ -37,24 +36,16 @@ export async function GET() {
       );
     }
 
-    // Get schedules from database
-    try {
-      // const schedules = // await prisma.scheduleHistory.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      });
+    const { data: schedules } = await supabase
+      .from('schedule_history')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-      return NextResponse.json({
-        success: true,
-        data: schedules,
-      });
-    } catch {
-      // If database not available, return empty
-      return NextResponse.json({
-        success: true,
-        data: [],
-      });
-    }
+    return NextResponse.json({
+      success: true,
+      data: schedules || [],
+    });
   } catch (error) {
     console.error('Schedule API error:', error);
     return NextResponse.json(
@@ -87,12 +78,11 @@ export async function POST(request: NextRequest) {
 
     // Validate player access
     const playersResponse = await piSignageClient.getPlayers();
-    const playerMap = new Map(
-      playersResponse.data.objects.map((p) => [p._id, p])
-    );
+    const players = playersResponse?.data?.objects || [];
+    const playerMap = new Map(players.map((p: { _id: string; name: string }) => [p._id, p]));
 
     for (const playerId of validated.playerIds) {
-      const player = playerMap.get(playerId);
+      const player = playerMap.get(playerId) as { _id: string; name: string } | undefined;
       if (!player) {
         return NextResponse.json(
           { success: false, error: { code: 'NOT_FOUND', message: `Player ${playerId} not found` } },
@@ -107,89 +97,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create or update playlist in PiSignage
-    try {
-      await piSignageClient.createPlaylist(validated.playlistName);
-    } catch {
-      // Playlist might already exist, continue
-    }
-
-    // Update playlist with assets
-    await piSignageClient.updatePlaylist(validated.playlistName, {
-      assets: validated.assets.map((asset) => ({
-        filename: asset.filename,
-        duration: asset.duration || 10,
-        selected: true,
-      })),
-    });
-
-    // Deploy to player groups
-    const groupIds = new Set<string>();
-    for (const playerId of validated.playerIds) {
-      const player = playerMap.get(playerId);
-      if (player?.group?._id) {
-        groupIds.add(player.group._id);
-      }
-    }
-
-    for (const groupId of groupIds) {
-      await piSignageClient.deployToGroup(groupId, {
-        deploy: true,
-        playlists: [
-          {
-            name: validated.playlistName,
-            settings: {
-              durationEnable: true,
-              startdate: validated.startTime,
-              enddate: validated.endTime,
-            },
-          },
-        ],
-        assets: validated.assets.map((a) => a.filename),
-      });
-    }
-
     // Save to database
+    const { data: dbUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('zo_user_id', session.user.id)
+      .single();
+
     let schedule = null;
-    try {
-      // const dbUser = // await prisma.user.findUnique({
-        where: { zoUserId: session.user.id },
-      });
-
-      if (dbUser) {
-        schedule = // await prisma.scheduleHistory.create({
-          data: {
-            playerIds: validated.playerIds,
-            playlistName: validated.playlistName,
-            startTime: new Date(validated.startTime),
-            endTime: new Date(validated.endTime),
-            deployedByUserId: dbUser.id,
-            deployedByPhone: session.user.mobile_number,
-            status: 'active',
-          },
-        });
-
-        // Create audit log
-        // await prisma.auditLog.create({
-          data: {
-            userId: dbUser.id,
-            phoneNumber: session.user.mobile_number,
-            action: 'schedule',
-            resourceType: 'schedule',
-            resourceId: schedule.id,
-            metadata: {
-              playlistName: validated.playlistName,
-              playerIds: validated.playerIds,
-              startTime: validated.startTime,
-              endTime: validated.endTime,
-            },
-            ipAddress: request.headers.get('x-forwarded-for'),
-            userAgent: request.headers.get('user-agent'),
-          },
-        });
-      }
-    } catch (dbError) {
-      console.warn('Failed to save schedule to database:', dbError);
+    if (dbUser) {
+      const { data } = await supabase
+        .from('schedule_history')
+        .insert({
+          player_ids: validated.playerIds,
+          playlist_name: validated.playlistName,
+          start_time: validated.startTime,
+          end_time: validated.endTime,
+          deployed_by_user_id: dbUser.id,
+          deployed_by_phone: session.user.mobile_number,
+          status: 'scheduled',
+        })
+        .select()
+        .single();
+      
+      schedule = data;
     }
 
     return NextResponse.json({
@@ -212,4 +143,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -38,17 +38,11 @@ export async function GET(
     }
 
     // Fetch player from PiSignage
-    const playerResponse = await piSignageClient.getPlayer(playerId);
+    const playerResponse = await piSignageClient.getPlayerById(playerId);
 
-    if (!playerResponse.success) {
+    if (!playerResponse.success || !playerResponse.data) {
       return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Player not found',
-          },
-        },
+        { success: false, error: { code: 'NOT_FOUND', message: 'Player not found' } },
         { status: 404 }
       );
     }
