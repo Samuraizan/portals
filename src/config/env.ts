@@ -1,20 +1,20 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  // Zo API (required)
+  // Zo API (required at runtime)
   ZO_API_BASE_URL: z.string().url(),
   ZO_CLIENT_KEY: z.string().min(1),
   
-  // PiSignage API (required)
+  // PiSignage API (required at runtime)
   PISIGNAGE_API_URL: z.string().url(),
   PISIGNAGE_USERNAME: z.string().min(1),
   PISIGNAGE_PASSWORD: z.string().min(1),
   
-  // Database (required)
+  // Database (required at runtime)
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   
-  // Session (required)
+  // Session (required at runtime)
   SESSION_SECRET: z.string().min(32),
   
   // Optional
@@ -28,16 +28,47 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
 });
 
-function getEnv() {
+export type Env = z.infer<typeof envSchema>;
+
+// Lazy singleton - only validates when first accessed at runtime
+let _env: Env | null = null;
+
+function getEnv(): Env {
+  if (_env) return _env;
+  
+  // Skip validation during build time (static page generation)
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    // Return placeholder values for build time
+    return {
+      ZO_API_BASE_URL: 'https://placeholder.com',
+      ZO_CLIENT_KEY: 'placeholder',
+      PISIGNAGE_API_URL: 'https://placeholder.com',
+      PISIGNAGE_USERNAME: 'placeholder',
+      PISIGNAGE_PASSWORD: 'placeholder',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder',
+      SESSION_SECRET: 'placeholder-secret-at-least-32-chars-long',
+      AWS_REGION: 'us-east-1',
+      NODE_ENV: 'production',
+      NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+    } as Env;
+  }
+  
   const parsed = envSchema.safeParse(process.env);
   
   if (!parsed.success) {
     const missing = Object.keys(parsed.error.flatten().fieldErrors);
+    console.error('❌ Missing environment variables:', missing);
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
   
-  return parsed.data;
+  _env = parsed.data;
+  return _env;
 }
 
-export const env = getEnv();
-export type Env = z.infer<typeof envSchema>;
+// Export as getter to enable lazy evaluation
+export const env = new Proxy({} as Env, {
+  get(_, prop: keyof Env) {
+    return getEnv()[prop];
+  },
+});
