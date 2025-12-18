@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { env } from '@/config/env';
+import { supabase } from '@/lib/db/client';
 
 interface Player {
   _id: string;
@@ -44,15 +45,43 @@ class PiSignageClient {
   }
 
   private async authenticate(): Promise<string> {
-    // First, check for pre-configured token (bypasses OTP requirement)
+    // Return cached token if available
+    if (this.token) return this.token;
+    
+    // 1. Try to get token from database (managed via admin UI)
+    try {
+      const { data: config } = await supabase
+        .from('app_config')
+        .select('value')
+        .eq('key', 'pisignage_token')
+        .single();
+      
+      if (config?.value) {
+        // Verify token is not expired
+        try {
+          const payload = JSON.parse(Buffer.from(config.value.split('.')[1], 'base64').toString());
+          if (payload.exp && payload.exp * 1000 > Date.now()) {
+            this.token = config.value;
+            return this.token;
+          }
+        } catch {
+          // Failed to decode, try using anyway
+          this.token = config.value;
+          return this.token;
+        }
+      }
+    } catch {
+      // Database not available or table doesn't exist, continue
+    }
+    
+    // 2. Fall back to env var token
     const preConfiguredToken = process.env.PISIGNAGE_TOKEN;
     if (preConfiguredToken) {
       this.token = preConfiguredToken;
       return this.token;
     }
     
-    if (this.token) return this.token;
-    
+    // 3. Try password authentication (may fail with OTP requirement)
     try {
       const response = await axios.post(`${this.baseURL}/session`, {
         email: env.PISIGNAGE_USERNAME,
@@ -65,10 +94,8 @@ class PiSignageClient {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const errData = error.response?.data;
-        // Check if OTP is required (new location)
         if (errData?.reason === 'location' || errData?.provider === 'e-otp') {
-          console.error('[PiSignage] OTP required - please set PISIGNAGE_TOKEN env var');
-          throw new Error('PiSignage requires OTP from new location. Set PISIGNAGE_TOKEN env var.');
+          throw new Error('PiSignage requires OTP. Go to Settings → PiSignage Token to refresh.');
         }
         console.error('[PiSignage] Auth error:', error.response?.status, errData);
       }

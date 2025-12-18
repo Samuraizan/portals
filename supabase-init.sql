@@ -149,6 +149,14 @@ CREATE INDEX IF NOT EXISTS idx_player_cache_is_active ON player_cache(is_active)
 ALTER TABLE player_cache ADD COLUMN IF NOT EXISTS group_name TEXT;
 ALTER TABLE player_cache ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
+-- App configuration (for storing tokens, settings, etc.)
+CREATE TABLE IF NOT EXISTS app_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_by TEXT
+);
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
