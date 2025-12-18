@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
             orientation: player.orientation || 'landscape',
             current_playlist: player.currentPlaylist || player.playlistOn || null,
             status: player.isConnected ? 'online' : 'offline',
-            last_seen: player.lastReported 
+            last_seen: player.lastReported && typeof player.lastReported === 'number'
               ? new Date(player.lastReported).toISOString()
               : new Date().toISOString(),
             metadata: {
