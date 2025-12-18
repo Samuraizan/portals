@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/use-permissions';
 import { Player } from '@/types/player';
-import { formatRelativeTime, determinePlayerStatus, cn } from '@/lib/utils';
+import { formatRelativeTime, cn } from '@/lib/utils';
 import {
   ArrowLeft,
   Monitor,
@@ -69,9 +69,15 @@ export default function PlayerDetailPage() {
       if (!response.ok) throw new Error('Failed to fetch player');
       const data = await response.json();
       
+      // Use isConnected from PiSignage as the source of truth for online/offline status
+      const isOnline = data.data.isConnected === true;
+      const status = isOnline 
+        ? (data.data.playlistOn ? 'online' : 'idle')
+        : 'offline';
+      
       const playerData = {
         ...data.data,
-        status: determinePlayerStatus(data.data.lastReported, data.data.playlistOn),
+        status,
       };
       
       setPlayer(playerData);

@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Player } from '@/types/player';
-import { formatRelativeTime, determinePlayerStatus } from '@/lib/utils';
+import { formatRelativeTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Monitor, MapPin, Play, Pause, Calendar, Clock } from 'lucide-react';
 
@@ -15,7 +15,9 @@ interface PlayerCardProps {
 }
 
 export function PlayerCard({ player, onSchedule }: PlayerCardProps) {
-  const status = player.status || determinePlayerStatus(player.lastReported, player.playlistOn);
+  // Use isConnected from PiSignage as source of truth, fallback to status field
+  const isOnline = player.isConnected === true;
+  const status = player.status || (isOnline ? (player.playlistOn ? 'online' : 'idle') : 'offline');
   
   const statusConfig = {
     online: {
