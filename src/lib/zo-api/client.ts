@@ -10,18 +10,22 @@ import {
 } from '@/types/auth';
 
 class ZoAPIClient {
-  private client: AxiosInstance;
+  private _client: AxiosInstance | null = null;
   private deviceCredentials: DeviceCredentials | null = null;
 
-  constructor() {
-    this.client = axios.create({
-      baseURL: env.ZO_API_BASE_URL,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'client-key': env.ZO_CLIENT_KEY,
-      },
-    });
+  // Lazy initialization of axios client
+  private get client(): AxiosInstance {
+    if (!this._client) {
+      this._client = axios.create({
+        baseURL: env.ZO_API_BASE_URL,
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+          'client-key': env.ZO_CLIENT_KEY,
+        },
+      });
+    }
+    return this._client;
   }
 
   setDeviceCredentials(credentials: DeviceCredentials) {
@@ -90,11 +94,13 @@ class ZoAPIClient {
       };
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
+        console.error('Zo API OTP error:', error.response?.data);
         return {
           success: false,
           error: error.response?.data?.errors?.[0] || error.response?.data?.error || error.response?.data?.message || 'Failed to send OTP',
         };
       }
+      console.error('Zo API unexpected error:', error);
       return {
         success: false,
         error: 'An unexpected error occurred',
@@ -136,11 +142,13 @@ class ZoAPIClient {
       };
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
+        console.error('Zo API verify error:', error.response?.data);
         return {
           success: false,
           error: error.response?.data?.errors?.[0] || error.response?.data?.error || error.response?.data?.message || 'Invalid OTP',
         };
       }
+      console.error('Zo API unexpected verify error:', error);
       return {
         success: false,
         error: 'An unexpected error occurred',

@@ -32,11 +32,15 @@ interface ApiResult {
 
 // Simple PiSignage client without interceptors (prevents memory leaks)
 class PiSignageClient {
-  private baseURL: string;
+  private _baseURL: string | null = null;
   private token: string | null = null;
 
-  constructor() {
-    this.baseURL = env.PISIGNAGE_API_URL;
+  // Lazy initialization
+  private get baseURL(): string {
+    if (!this._baseURL) {
+      this._baseURL = env.PISIGNAGE_API_URL;
+    }
+    return this._baseURL;
   }
 
   private async authenticate(): Promise<string> {
