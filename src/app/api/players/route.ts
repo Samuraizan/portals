@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         currentPlaylist: String(player.currentPlaylist || ''),
         lastReported: typeof player.lastReported === 'number' ? player.lastReported : Date.now(),
         tvStatus: Boolean(player.tvStatus),
+        isConnected,
         status: isConnected ? 'online' : 'offline',
         configLocation: player.configLocation as string | undefined,
         version: player.version as string | undefined,
