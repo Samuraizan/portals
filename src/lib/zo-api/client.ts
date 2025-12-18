@@ -74,8 +74,15 @@ class ZoAPIClient {
         message_channel: request.message_channel || '',
       };
 
+      const clientKey = env.ZO_CLIENT_KEY;
+      const baseUrl = env.ZO_API_BASE_URL;
+      
+      console.log('[Zo API] Base URL:', baseUrl);
+      console.log('[Zo API] Client Key (first 8 chars):', clientKey?.substring(0, 8) + '...');
+      console.log('[Zo API] Payload:', payload);
+
       const headers = {
-        'client-key': env.ZO_CLIENT_KEY,
+        'client-key': clientKey,
         'client-device-id': deviceId,
         'client-device-secret': deviceSecret,
       };
@@ -94,13 +101,14 @@ class ZoAPIClient {
       };
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        console.error('Zo API OTP error:', error.response?.data);
+        console.error('[Zo API] OTP error status:', error.response?.status);
+        console.error('[Zo API] OTP error data:', JSON.stringify(error.response?.data));
         return {
           success: false,
           error: error.response?.data?.errors?.[0] || error.response?.data?.error || error.response?.data?.message || 'Failed to send OTP',
         };
       }
-      console.error('Zo API unexpected error:', error);
+      console.error('[Zo API] Unexpected error:', error);
       return {
         success: false,
         error: 'An unexpected error occurred',

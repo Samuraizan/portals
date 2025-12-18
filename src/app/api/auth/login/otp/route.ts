@@ -10,7 +10,10 @@ const otpRequestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('[OTP] Request body:', body);
+    
     const validated = otpRequestSchema.parse(body);
+    console.log('[OTP] Validated:', validated);
 
     const deviceId = request.headers.get('x-device-id');
     const deviceSecret = request.headers.get('x-device-secret');
@@ -19,10 +22,12 @@ export async function POST(request: NextRequest) {
       zoApiClient.setDeviceCredentials({ deviceId, deviceSecret });
     }
 
+    console.log('[OTP] Calling Zo API...');
     const result = await zoApiClient.sendOTP({
       mobile_country_code: validated.mobile_country_code,
       mobile_number: validated.mobile_number,
     });
+    console.log('[OTP] Zo API result:', result);
 
     if (result.success) {
       return NextResponse.json({
@@ -33,6 +38,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    console.error('[OTP] Zo API error:', result.error);
     return NextResponse.json(
       {
         success: false,
@@ -44,6 +50,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
+    console.error('[OTP] Exception:', error);
+    
     if (error instanceof z.ZodError) {
       const firstError = error.issues[0];
       return NextResponse.json(
@@ -64,7 +72,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'An unexpected error occurred',
+          message: error instanceof Error ? error.message : 'An unexpected error occurred',
         },
       },
       { status: 500 }
