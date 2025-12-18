@@ -71,7 +71,7 @@ class ZoAPIClient {
       const payload = {
         mobile_country_code: request.mobile_country_code.replace('+', ''),
         mobile_number: request.mobile_number,
-        message_channel: request.message_channel || '',
+        message_channel: '',
       };
 
       const clientKey = env.ZO_CLIENT_KEY;
@@ -79,19 +79,25 @@ class ZoAPIClient {
       
       console.log('[Zo API] Base URL:', baseUrl);
       console.log('[Zo API] Client Key (first 8 chars):', clientKey?.substring(0, 8) + '...');
-      console.log('[Zo API] Payload:', payload);
+      console.log('[Zo API] Device ID:', deviceId);
+      console.log('[Zo API] Payload:', JSON.stringify(payload));
 
-      const headers = {
-        'client-key': clientKey,
-        'client-device-id': deviceId,
-        'client-device-secret': deviceSecret,
-      };
-
-      const response = await this.client.post(
-        '/api/v1/auth/login/mobile/otp/',
+      // Make direct axios call with all headers explicitly set
+      const response = await axios.post(
+        `${baseUrl}/api/v1/auth/login/mobile/otp/`,
         payload,
-        { headers }
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'client-key': clientKey,
+            'client-device-id': deviceId,
+            'client-device-secret': deviceSecret,
+          },
+          timeout: 30000,
+        }
       );
+
+      console.log('[Zo API] Success response:', response.data);
 
       return {
         success: true,
@@ -103,6 +109,7 @@ class ZoAPIClient {
       if (axios.isAxiosError(error)) {
         console.error('[Zo API] OTP error status:', error.response?.status);
         console.error('[Zo API] OTP error data:', JSON.stringify(error.response?.data));
+        console.error('[Zo API] OTP error headers:', JSON.stringify(error.config?.headers));
         return {
           success: false,
           error: error.response?.data?.errors?.[0] || error.response?.data?.error || error.response?.data?.message || 'Failed to send OTP',
@@ -127,16 +134,24 @@ class ZoAPIClient {
         otp: request.otp.toString().trim(),
       };
 
-      const headers = {
-        'client-key': env.ZO_CLIENT_KEY,
-        'client-device-id': deviceId,
-        'client-device-secret': deviceSecret,
-      };
+      const clientKey = env.ZO_CLIENT_KEY;
+      const baseUrl = env.ZO_API_BASE_URL;
 
-      const response = await this.client.post<ZoLoginResponse>(
-        '/api/v1/auth/login/mobile/',
+      console.log('[Zo API] Verify - Device ID:', deviceId);
+      console.log('[Zo API] Verify - Payload:', JSON.stringify(payload));
+
+      const response = await axios.post<ZoLoginResponse>(
+        `${baseUrl}/api/v1/auth/login/mobile/`,
         payload,
-        { headers }
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'client-key': clientKey,
+            'client-device-id': deviceId,
+            'client-device-secret': deviceSecret,
+          },
+          timeout: 30000,
+        }
       );
 
       this.deviceCredentials = {
@@ -150,13 +165,14 @@ class ZoAPIClient {
       };
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        console.error('Zo API verify error:', error.response?.data);
+        console.error('[Zo API] Verify error status:', error.response?.status);
+        console.error('[Zo API] Verify error data:', JSON.stringify(error.response?.data));
         return {
           success: false,
           error: error.response?.data?.errors?.[0] || error.response?.data?.error || error.response?.data?.message || 'Invalid OTP',
         };
       }
-      console.error('Zo API unexpected verify error:', error);
+      console.error('[Zo API] Unexpected verify error:', error);
       return {
         success: false,
         error: 'An unexpected error occurred',
