@@ -74,9 +74,11 @@ export async function GET() {
       health.pisignage.playerCount = response.data?.objects?.length ?? 0;
     } else {
       health.pisignage.status = 'error';
+      (health.pisignage as Record<string, unknown>).error = response.error?.message || 'Unknown error';
     }
   } catch (error) {
     health.pisignage.status = 'error';
+    (health.pisignage as Record<string, unknown>).error = error instanceof Error ? error.message : 'Unknown error';
   }
 
   const overallStatus = 
