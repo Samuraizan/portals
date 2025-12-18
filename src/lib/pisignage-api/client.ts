@@ -59,15 +59,15 @@ class PiSignageClient {
       if (config?.value) {
         // Verify token is not expired
         try {
-          const payload = JSON.parse(Buffer.from(config.value.split('.')[1], 'base64').toString());
+  const payload = JSON.parse(Buffer.from(config.value.split('.')[1], 'base64').toString());
           if (payload.exp && payload.exp * 1000 > Date.now()) {
             this.token = config.value;
-            return this.token;
+            return this.token as string;
           }
         } catch {
           // Failed to decode, try using anyway
           this.token = config.value;
-          return this.token;
+          return this.token as string;
         }
       }
     } catch {
