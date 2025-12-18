@@ -9,6 +9,7 @@ const envSchema = z.object({
   PISIGNAGE_API_URL: z.string().url(),
   PISIGNAGE_USERNAME: z.string().min(1),
   PISIGNAGE_PASSWORD: z.string().min(1),
+  PISIGNAGE_TOKEN: z.string().optional(), // Pre-obtained token (bypasses OTP)
   
   // Database (required at runtime)
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),

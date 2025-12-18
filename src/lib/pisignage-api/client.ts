@@ -44,10 +44,14 @@ class PiSignageClient {
   }
 
   private async authenticate(): Promise<string> {
+    // First, check for pre-configured token (bypasses OTP requirement)
+    const preConfiguredToken = process.env.PISIGNAGE_TOKEN;
+    if (preConfiguredToken) {
+      this.token = preConfiguredToken;
+      return this.token;
+    }
+    
     if (this.token) return this.token;
-
-    console.log('[PiSignage] Authenticating with:', this.baseURL);
-    console.log('[PiSignage] Username:', env.PISIGNAGE_USERNAME);
     
     try {
       const response = await axios.post(`${this.baseURL}/session`, {
@@ -56,12 +60,17 @@ class PiSignageClient {
         getToken: true,
       });
 
-      console.log('[PiSignage] Auth response:', response.data);
       this.token = response.data.token;
       return this.token!;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        console.error('[PiSignage] Auth error:', error.response?.status, error.response?.data);
+        const errData = error.response?.data;
+        // Check if OTP is required (new location)
+        if (errData?.reason === 'location' || errData?.provider === 'e-otp') {
+          console.error('[PiSignage] OTP required - please set PISIGNAGE_TOKEN env var');
+          throw new Error('PiSignage requires OTP from new location. Set PISIGNAGE_TOKEN env var.');
+        }
+        console.error('[PiSignage] Auth error:', error.response?.status, errData);
       }
       throw error;
     }
