@@ -58,18 +58,34 @@ export default function PlayersPage() {
     }
   };
 
-  // Filter players
-  const filteredPlayers = players.filter((player) => {
-    const matchesLocation =
-      locationFilter === 'all' ||
-      player.configLocation?.toLowerCase().includes(locationFilter.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || player.status === statusFilter;
-    const matchesSearch =
-      !searchQuery ||
-      player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      player.configLocation?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesLocation && matchesStatus && matchesSearch;
-  });
+  // Status priority for sorting (online first, then idle, then offline)
+  const statusPriority: Record<string, number> = {
+    online: 0,
+    idle: 1,
+    offline: 2,
+  };
+
+  // Filter and sort players (online first, then offline)
+  const filteredPlayers = players
+    .filter((player) => {
+      const matchesLocation =
+        locationFilter === 'all' ||
+        player.configLocation?.toLowerCase().includes(locationFilter.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || player.status === statusFilter;
+      const matchesSearch =
+        !searchQuery ||
+        player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        player.configLocation?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesLocation && matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      // Sort by status priority first (online → idle → offline)
+      const priorityA = statusPriority[a.status] ?? 2;
+      const priorityB = statusPriority[b.status] ?? 2;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      // Then sort alphabetically by name
+      return a.name.localeCompare(b.name);
+    });
 
   // Get unique locations
   const locations = [...new Set(players.map((p) => p.configLocation).filter(Boolean))];

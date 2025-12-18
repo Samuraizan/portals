@@ -49,17 +49,33 @@ export default function DashboardPage() {
     }
   };
 
-  // Filter players
-  const filteredPlayers = players.filter((player) => {
-    const matchesLocation =
-      locationFilter === 'all' ||
-      player.configLocation?.toLowerCase().includes(locationFilter.toLowerCase());
-    const matchesSearch =
-      !searchQuery ||
-      player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      player.configLocation?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesLocation && matchesSearch;
-  });
+  // Status priority for sorting (online first, then idle, then offline)
+  const statusPriority: Record<string, number> = {
+    online: 0,
+    idle: 1,
+    offline: 2,
+  };
+
+  // Filter and sort players (online first, then offline)
+  const filteredPlayers = players
+    .filter((player) => {
+      const matchesLocation =
+        locationFilter === 'all' ||
+        player.configLocation?.toLowerCase().includes(locationFilter.toLowerCase());
+      const matchesSearch =
+        !searchQuery ||
+        player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        player.configLocation?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesLocation && matchesSearch;
+    })
+    .sort((a, b) => {
+      // Sort by status priority first (online → idle → offline)
+      const priorityA = statusPriority[a.status] ?? 2;
+      const priorityB = statusPriority[b.status] ?? 2;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      // Then sort alphabetically by name
+      return a.name.localeCompare(b.name);
+    });
 
   // Calculate stats
   const totalPlayers = filteredPlayers.length;
