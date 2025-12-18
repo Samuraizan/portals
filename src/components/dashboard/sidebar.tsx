@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Monitor,
   Upload,
+  ListVideo,
   Calendar,
   BarChart3,
   Settings,
@@ -34,6 +35,12 @@ const navigation = [
     name: 'Content',
     href: '/content',
     icon: Upload,
+    permission: 'canViewPlayers' as const,
+  },
+  {
+    name: 'Playlists',
+    href: '/playlists',
+    icon: ListVideo,
     permission: 'canViewPlayers' as const,
   },
   {
