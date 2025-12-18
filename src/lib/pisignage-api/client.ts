@@ -46,30 +46,52 @@ class PiSignageClient {
   private async authenticate(): Promise<string> {
     if (this.token) return this.token;
 
-    const response = await axios.post(`${this.baseURL}/session`, {
-      email: env.PISIGNAGE_USERNAME,
-      password: env.PISIGNAGE_PASSWORD,
-      getToken: true,
-    });
+    console.log('[PiSignage] Authenticating with:', this.baseURL);
+    console.log('[PiSignage] Username:', env.PISIGNAGE_USERNAME);
+    
+    try {
+      const response = await axios.post(`${this.baseURL}/session`, {
+        email: env.PISIGNAGE_USERNAME,
+        password: env.PISIGNAGE_PASSWORD,
+        getToken: true,
+      });
 
-    this.token = response.data.token;
-    return this.token!;
+      console.log('[PiSignage] Auth response:', response.data);
+      this.token = response.data.token;
+      return this.token!;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('[PiSignage] Auth error:', error.response?.status, error.response?.data);
+      }
+      throw error;
+    }
   }
 
   async getPlayers(): Promise<PlayersResponse> {
     try {
       const token = await this.authenticate();
+      console.log('[PiSignage] Fetching players with token:', token?.substring(0, 20) + '...');
       
       const response = await axios.get(`${this.baseURL}/players`, {
         headers: { 'x-access-token': token },
         params: { per_page: 100 },
       });
 
+      console.log('[PiSignage] Players response keys:', Object.keys(response.data));
+      console.log('[PiSignage] Players count:', response.data?.data?.objects?.length || response.data?.objects?.length || 0);
+
+      // Handle both response formats
+      const players = response.data?.data?.objects || response.data?.objects || [];
+      
       return {
         success: true,
-        data: response.data.data || response.data,
+        data: { objects: players },
       };
     } catch (error) {
+      console.error('[PiSignage] Get players error:', error instanceof Error ? error.message : error);
+      if (axios.isAxiosError(error)) {
+        console.error('[PiSignage] Error details:', error.response?.status, error.response?.data);
+      }
       return {
         success: false,
         data: { objects: [] },
