@@ -15,10 +15,17 @@ CREATE TABLE IF NOT EXISTS users (
   membership TEXT,
   roles TEXT[] DEFAULT '{}',
   access_groups TEXT[] DEFAULT '{}',
+  -- Local role override (takes precedence over Zo API roles)
+  local_role TEXT DEFAULT NULL, -- 'admin' | 'property-manager' | 'activity-manager' | 'marketing' | etc.
+  is_active BOOLEAN DEFAULT TRUE,
   last_login TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add column if table already exists
+ALTER TABLE users ADD COLUMN IF NOT EXISTS local_role TEXT DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
 -- User player permissions
 CREATE TABLE IF NOT EXISTS user_player_permissions (
@@ -116,16 +123,18 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
--- Player cache
+-- Player cache (synced from PiSignage)
 CREATE TABLE IF NOT EXISTS player_cache (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   pisignage_id TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
-  location TEXT,
-  orientation TEXT,
+  location TEXT, -- 'SFO' | 'BLR' | etc.
+  group_name TEXT, -- PiSignage group name
+  orientation TEXT DEFAULT 'landscape',
   current_playlist TEXT,
-  status TEXT NOT NULL, -- 'online' | 'offline' | 'idle'
-  last_seen TIMESTAMP WITH TIME ZONE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'offline', -- 'online' | 'offline' | 'idle'
+  is_active BOOLEAN DEFAULT TRUE, -- Can be disabled locally
+  last_seen TIMESTAMP WITH TIME ZONE,
   metadata JSONB, -- Full player object from PiSignage
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -133,6 +142,12 @@ CREATE TABLE IF NOT EXISTS player_cache (
 
 CREATE INDEX IF NOT EXISTS idx_player_cache_pisignage_id ON player_cache(pisignage_id);
 CREATE INDEX IF NOT EXISTS idx_player_cache_status ON player_cache(status);
+CREATE INDEX IF NOT EXISTS idx_player_cache_location ON player_cache(location);
+CREATE INDEX IF NOT EXISTS idx_player_cache_is_active ON player_cache(is_active);
+
+-- Add columns if table already exists
+ALTER TABLE player_cache ADD COLUMN IF NOT EXISTS group_name TEXT;
+ALTER TABLE player_cache ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
