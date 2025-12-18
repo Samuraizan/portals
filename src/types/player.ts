@@ -15,6 +15,7 @@ export interface Player {
   currentPlaylist?: string;
   lastReported: number;
   tvStatus: boolean;
+  isConnected: boolean;
   status: 'online' | 'offline' | 'idle';
 }
 
